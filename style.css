@@ -23,7 +23,20 @@ body { margin: 0; background: #f8fafc; font-family: 'Inter', sans-serif; height:
 
 /* PAGE 2: Dashboard */
 .full-screen-dashboard { position: fixed; inset: 0; background: #e2e8f0; z-index: 4000; flex-direction: column; }
-.navbar { background: var(--navy); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; color: white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+
+/* 🔥 NAVBAR FIXED FOREVER */
+.navbar { 
+    background: var(--navy); 
+    padding: 12px 25px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    color: white; 
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
+    flex-shrink: 0; 
+    z-index: 100;
+}
+
 .dashboard-layout { display: flex; justify-content: space-between; padding: 50px; max-width: 1000px; margin: 0 auto; width: 100%; }
 
 .dash-left { flex: 1; }
@@ -49,10 +62,23 @@ body { margin: 0; background: #f8fafc; font-family: 'Inter', sans-serif; height:
 .pane { background: white; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 .pdf-pane { flex: 1; background: #525659; position: relative; }
 .scroll-v { flex: 1; overflow-y: auto; padding: 5px; }
-.pdf-wrap { width: 100%; background: white; margin-bottom: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-.pdf-canvas { width: 112%; margin-left: -6%; display: block; image-rendering: crisp-edges; }
 
-.editor-pane { flex: 1; }
+/* 🔥 PDF MARGIN CROP KIYA GAYA HAI */
+.pdf-wrap { 
+    width: 100%; 
+    background: white; 
+    margin-bottom: 12px; 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+    overflow: hidden; 
+}
+.pdf-canvas { 
+    width: 130%; 
+    margin-left: -15%; 
+    display: block; 
+    image-rendering: crisp-edges; 
+}
+
+.editor-pane { flex: 1; display: flex; flex-direction: column; }
 .editor-header { padding: 8px; border-bottom: 1px solid var(--border); display: flex; justify-content: center; background: #f8fafc; }
 .toolbar-pill { background: white; padding: 4px; border-radius: 6px; display: flex; gap: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border); }
 .t-btn { background: transparent; border: none; padding: 5px; cursor: pointer; color: #475569; border-radius: 4px; }
