@@ -1,55 +1,55 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-// ==========================================
-// ✅ PRESERVED KEYS (Turn 15, Line 5-7)
-// ==========================================
+// =========================================================
+// ✅ AAPKI FINAL KEYS
+// =========================================================
 const CLIENT_ID = '1099442490417-04i1f2t2ilj31ddki1c4fhcm3bgdr2j6.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyC657KGTX-fn3TxdYptSIedkQ0ZKd4lfUI';
 const ADMIN_FOLDER_ID = '10pTgGbmUDlOvbUuJDYuIrBy3svSif2-s';
-// ==========================================
+// =========================================================
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 let tokenClient;
 let accessToken = null;
 let currentOriginalText = "";
+let currentTestName = "";
 let timerInterval, timeLeft = 900, started = false;
 let studentResults = JSON.parse(localStorage.getItem('localResults')) || [];
 
-// 1. Google Login Auth
+// 1. Google Login Setup
 window.onload = function () {
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
         callback: (tokenResponse) => {
-            accessToken = tokenResponse.access_token;
-            // Login Success!
-            document.getElementById('home-page').style.display = 'none';
-            document.getElementById('dashboard-page').style.display = 'flex';
+            if (tokenResponse && tokenResponse.access_token) {
+                accessToken = tokenResponse.access_token;
+                document.getElementById('home-page').style.display = 'none';
+                document.getElementById('dashboard-page').style.display = 'flex';
+            }
         },
     });
 };
 
 function handleGoogleLogin() {
-    tokenClient.requestAccessToken();
+    try {
+        tokenClient.requestAccessToken();
+    } catch(e) {
+        alert("Google script is loading, please wait 2 seconds and click again.");
+    }
 }
 
-// 2. Modified: Toggle and Populate Inline Test List
+// 2. Fetch Tests List
 async function toggleTestList() {
     const listDiv = document.getElementById('inline-test-list');
-    const button = document.querySelector('.action-card button');
     
-    // Toggle behavior
-    if (listDiv.style.display === 'block') {
+    if (listDiv.style.display === 'flex') {
         listDiv.style.display = 'none';
-        button.innerText = "View My Tests";
         return;
     }
     
-    // Otherwise show and load
-    listDiv.style.display = 'block';
-    button.innerText = "Hide My Tests";
-    
-    listDiv.innerHTML = '<span style="color:#64748b;">Loading tests from Admin Drive...</span>';
+    listDiv.style.display = 'flex';
+    listDiv.innerHTML = '<span style="color: #64748b;">Loading files...</span>';
 
     try {
         const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${ADMIN_FOLDER_ID}'+in+parents&key=${API_KEY}`);
@@ -57,38 +57,48 @@ async function toggleTestList() {
         
         if (data.files && data.files.length > 0) {
             listDiv.innerHTML = data.files.map(file => `
-                <div class="test-list-row" onclick="startTest('${file.id}', '${file.name}')">
-                    <span>${file.name}</span>
-                    <span class="test-row-id">Admin</span>
+                <div class="test-box" onclick="startTest('${file.id}', '${file.name}')">
+                    ${file.name.replace('.pdf', '')}
                 </div>
             `).join('');
         } else {
-            listDiv.innerHTML = '<span style="color:#ef4444;">No tests available.</span>';
+            listDiv.innerHTML = '<span style="color: #ef4444;">No tests uploaded yet.</span>';
         }
     } catch (error) {
-        listDiv.innerHTML = '<span style="color:#ef4444;">Error loading tests. Check Config.</span>';
+        listDiv.innerHTML = '<span style="color: #ef4444;">Access Error. Check Folder sharing permissions.</span>';
     }
 }
 
-// 3. Load Selected Test PDF (Page 3 workspace)
+// 3. Load PDF & Setup Start Button
 async function startTest(fileId, fileName) {
     document.getElementById('dashboard-page').style.display = 'none';
     document.getElementById('workspace-page').style.display = 'flex';
-    document.getElementById('current-test-name').innerText = `Admin Test: ${fileName}`;
+    
+    currentTestName = fileName.replace('.pdf', '');
+    
+    // Reset "Start Test" Button
+    const startBtn = document.getElementById('start-test-btn');
+    startBtn.innerText = "Start Test";
+    startBtn.style.background = "#10b981";
+    startBtn.setAttribute("onclick", "beginTypingTest()");
+    
+    // Lock the editor
+    const editor = document.getElementById('editor');
+    editor.contentEditable = false;
+    editor.innerHTML = "<div style='color:#94a3b8; text-align:center; margin-top:100px; font-weight:bold;'>Click the Green 'Start Test' button above to begin typing...</div>";
     
     const pdfContainer = document.getElementById('pdf-container');
-    pdfContainer.innerHTML = '<div class="empty-state">Loading PDF from Drive...</div>';
+    pdfContainer.innerHTML = '<div class="empty-state">Downloading Test Paper...</div>';
     
-    // Reset Editor & Timer
-    document.getElementById('editor').innerHTML = "";
     clearInterval(timerInterval);
     timeLeft = 900; started = false;
     document.getElementById('timer').innerText = "15:00";
 
     try {
-        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
+        // Fetch public PDF using API key
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`);
+        if (!response.ok) throw new Error("File access denied.");
+        
         const arrayBuffer = await response.arrayBuffer();
         const typedarray = new Uint8Array(arrayBuffer);
 
@@ -117,13 +127,50 @@ async function startTest(fileId, fileName) {
             currentOriginalText += content.items.map(s => s.str).join(" ") + " ";
         }
     } catch (err) {
-        pdfContainer.innerHTML = '<div class="empty-state" style="color:red;">Failed to load PDF. Check Drive Permissions.</div>';
+        console.error(err);
+        pdfContainer.innerHTML = '<div class="empty-state" style="color:var(--danger);">Error loading PDF file. Please ensure the PDF file inside Google Drive is shared as "Anyone with the link".</div>';
     }
 }
 
-// 4. Submit & Compare Result
+// 4. Begin Typing Logic (Unlocks editor, starts timer)
+function beginTypingTest() {
+    if (!currentOriginalText) {
+        alert("Please wait for the PDF to load completely before starting!");
+        return;
+    }
+    
+    started = true;
+    
+    // Unlock editor
+    const editor = document.getElementById('editor');
+    editor.contentEditable = true;
+    editor.innerHTML = ""; 
+    editor.focus();
+
+    // Change Button appearance
+    const startBtn = document.getElementById('start-test-btn');
+    startBtn.innerText = currentTestName;
+    startBtn.style.background = "#334155";
+    startBtn.removeAttribute("onclick"); // Disable clicking again
+
+    // Timer Logic
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        let m = Math.floor(timeLeft / 60);
+        let s = timeLeft % 60;
+        document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        
+        if(timeLeft <= 0) {
+            clearInterval(timerInterval);
+            alert("Time is up! Submitting your test automatically.");
+            document.getElementById('submit-btn').click();
+        }
+    }, 1000);
+}
+
+// 5. Submit & Compare Result
 document.getElementById('submit-btn').onclick = () => {
-    if(!started) return alert("You haven't typed anything yet!");
+    if(!started) return alert("You haven't started the test yet!");
     clearInterval(timerInterval);
     
     const typedWords = document.getElementById('editor').innerText.trim().split(/\s+/);
@@ -139,32 +186,47 @@ document.getElementById('submit-btn').onclick = () => {
     const wpm = Math.round((typedWords.length / 5) / (timeSpent || 1));
     const acc = ((refWords.length - mistakes) / refWords.length * 100).toFixed(1) + "%";
 
-    document.getElementById('res-wpm').innerText = wpm;
+    document.getElementById('res-wpm').innerText = wpm || 0;
     document.getElementById('res-acc').innerText = acc;
     document.getElementById('error-analysis').innerHTML = html;
     document.getElementById('result-modal').style.display = 'flex';
 
-    studentResults.push({ date: new Date().toLocaleDateString(), testName: document.getElementById('current-test-name').innerText, wpm, acc });
+    // Data Backup
+    const resultData = {
+        date: new Date().toLocaleDateString(),
+        testName: currentTestName,
+        wpm: wpm || 0,
+        accuracy: acc
+    };
+    studentResults.push(resultData);
     localStorage.setItem('localResults', JSON.stringify(studentResults));
+    saveToStudentDrive(resultData); // Upload JSON to user's Drive
 };
 
-// 5. Utilities
-document.getElementById('editor').oninput = () => {
-    if(!started && currentOriginalText) {
-        started = true;
-        timerInterval = setInterval(() => {
-            timeLeft--;
-            let m = Math.floor(timeLeft / 60);
-            let s = timeLeft % 60;
-            document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-        }, 1000);
-    }
-};
+// Save JSON to Drive
+async function saveToStudentDrive(dataObj) {
+    const fileContent = new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' });
+    const metadata = { name: `AnupamSteno_${dataObj.testName}_Result.json` };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', fileContent);
+    fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: new Headers({ 'Authorization': `Bearer ${accessToken}` }),
+        body: form
+    });
+}
 
+// Format Buttons (Bold, Italic, etc)
 document.querySelectorAll('.t-btn').forEach(btn => {
-    btn.onclick = () => { document.execCommand(btn.dataset.cmd, false, null); document.getElementById('editor').focus(); };
+    btn.onclick = () => { 
+        if(!started) return;
+        document.execCommand(btn.dataset.cmd, false, null); 
+        document.getElementById('editor').focus(); 
+    };
 });
 
+// UI Navigation functions
 function backToDashboard() {
     document.getElementById('result-modal').style.display = 'none';
     document.getElementById('workspace-page').style.display = 'none';
@@ -172,8 +234,13 @@ function backToDashboard() {
 }
 
 function showHistory() {
-    document.getElementById('history-modal').style.display = 'flex';
+    document.getElementById('history-page').style.display = 'flex';
     const tbody = document.getElementById('history-body');
-    if(studentResults.length === 0) { tbody.innerHTML = '<tr><td colspan="4">No tests taken yet.</td></tr>'; return; }
-    tbody.innerHTML = studentResults.map(r => `<tr><td>${r.date}</td><td>${r.testName}</td><td>${r.wpm}</td><td>${r.acc}</td></tr>`).reverse().join('');
+    if(studentResults.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No tests completed yet.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = studentResults.map(r => `
+        <tr><td>${r.date}</td><td style="font-weight:bold;">${r.testName}</td><td style="color:var(--accent); font-weight:bold;">${r.wpm}</td><td style="color:#10b981; font-weight:bold;">${r.accuracy}</td></tr>
+    `).reverse().join('');
 }
