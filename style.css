@@ -62,20 +62,8 @@ body { margin: 0; background: #f8fafc; font-family: 'Inter', sans-serif; height:
 .pdf-pane { flex: 1; background: #525659; position: relative; }
 .scroll-v { flex: 1; overflow-y: auto; padding: 5px; }
 
-/* 🔥 PDF CUTTING FIX (Left se 10% katega, Right 100% safe rahega) */
-.pdf-wrap { 
-    width: 100%; 
-    background: white; 
-    margin-bottom: 12px; 
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
-    overflow: hidden; 
-}
-.pdf-canvas { 
-    width: 110%; /* PDF ko perfectly fit karega */
-    margin-left: -10%; /* Left ka khali margin chupa dega */
-    display: block; 
-    image-rendering: crisp-edges; 
-}
+.pdf-wrap { width: 100%; background: white; margin-bottom: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0,3); }
+.pdf-canvas { width: 125%; margin-left: -20%; display:block; image-rendering:-webkit-optimize-contrast; } 
 
 .editor-pane { flex: 1; display: flex; flex-direction: column; }
 .editor-header { padding: 8px; border-bottom: 1px solid var(--border); display: flex; justify-content: center; background: #f8fafc; }
