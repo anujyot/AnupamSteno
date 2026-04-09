@@ -10,11 +10,7 @@ let tokenClient, accessToken = null, currentOriginalText = "", currentTestName =
 window.onload = function () {
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID, scope: SCOPES,
-        callback: (res) => { 
-            accessToken = res.access_token; 
-            document.getElementById('home-page').style.display = 'none'; 
-            document.getElementById('dashboard-page').style.display = 'flex'; 
-        }
+        callback: (res) => { accessToken = res.access_token; document.getElementById('home-page').style.display = 'none'; document.getElementById('dashboard-page').style.display = 'flex'; }
     });
 };
 
@@ -41,48 +37,32 @@ async function startTest(id, name) {
     currentTestName = name.replace('.pdf','');
     document.getElementById('dashboard-page').style.display = 'none';
     document.getElementById('workspace-page').style.display = 'flex';
-    
-    // Reset Timer & Start Button
-    clearInterval(timerInterval);
-    timeLeft = 900;
-    document.getElementById('timer').innerText = "15:00";
-    const startBtn = document.getElementById('start-test-btn');
-    startBtn.innerText = "Start Test";
-    startBtn.style.background = "#10b981";
-    startBtn.setAttribute("onclick", "beginTypingTest()");
-
     const container = document.getElementById('pdf-container');
     container.innerHTML = 'Loading HD PDF...';
     
-    try {
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${API_KEY}`);
-        const pdf = await pdfjsLib.getDocument({data: await res.arrayBuffer()}).promise;
-        container.innerHTML = ''; currentOriginalText = "";
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${API_KEY}`);
+    const pdf = await pdfjsLib.getDocument({data: await res.arrayBuffer()}).promise;
+    container.innerHTML = ''; currentOriginalText = "";
 
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({scale: 4.0}); 
-            const canvas = document.createElement('canvas');
-            canvas.className = 'pdf-canvas';
-            canvas.height = viewport.height; canvas.width = viewport.width;
-            await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
-            const wrap = document.createElement('div'); wrap.className = 'pdf-wrap';
-            wrap.appendChild(canvas); container.appendChild(wrap);
-            const textContent = await page.getTextContent();
-            currentOriginalText += textContent.items.map(s => s.str).join(" ") + " ";
-        }
-    } catch(e) { container.innerHTML = "Error loading PDF."; }
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({scale: 4.0}); // HD QUALITY
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pdf-canvas';
+        canvas.height = viewport.height; canvas.width = viewport.width;
+        await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+        const wrap = document.createElement('div'); wrap.className = 'pdf-wrap';
+        wrap.appendChild(canvas); container.appendChild(wrap);
+        const text = await page.getTextContent();
+        // Maintain layout during text extraction
+        currentOriginalText += text.items.map(s => s.str).join(" ") + "\n";
+    }
 }
 
 function beginTypingTest() {
-    started = true;
-    const ed = document.getElementById('editor');
+    started = true; const ed = document.getElementById('editor');
     ed.contentEditable = true; ed.innerHTML = ""; ed.focus();
-    const btn = document.getElementById('start-test-btn');
-    btn.innerText = currentTestName;
-    btn.style.background = "#334155";
-    btn.removeAttribute("onclick");
-    
+    document.getElementById('start-test-btn').innerText = currentTestName;
     timerInterval = setInterval(() => {
         timeLeft--;
         let m = Math.floor(timeLeft/60), s = timeLeft%60;
@@ -96,21 +76,30 @@ document.getElementById('submit-btn').onclick = () => {
     clearInterval(timerInterval);
     
     const editor = document.getElementById('editor');
-    const typedWords = editor.innerText.trim().split(/\s+/);
+    const typedText = editor.innerText;
+    const typedWords = typedText.trim().split(/\s+/);
     const refWords = currentOriginalText.trim().split(/\s+/);
-    let mistakes = 0, html = "";
+    
+    let mistakes = 0;
+    let html = "";
 
+    // Exact word matching for legal accuracy
     refWords.forEach((ref, i) => {
         let typed = typedWords[i] || "";
+        
+        // Exact match or Case-insensitive match or Formatting (Colon etc.)
         if (typed === ref || typed.toLowerCase() === ref.toLowerCase() || (ref.endsWith(':') && typed === ref.replace(':',''))) {
             html += `<span class="text-correct">${ref}</span> `;
         } else if (typed === "") {
-            mistakes++; html += `<span class="text-missing">${ref}</span> `;
+            mistakes++;
+            html += `<span class="text-missing">${ref}</span> `; // Underline Green
         } else {
-            mistakes++; html += `<span class="text-error">${typed}</span><span class="text-correct">(${ref})</span> `;
+            mistakes++;
+            html += `<span class="text-error">${typed}</span><span class="text-correct">(${ref})</span> `; // Red
         }
     });
 
+    // Horizontal Line Check
     if(!editor.innerHTML.includes('<hr>')) {
         html = '<div class="hr-mistake"></div>' + html;
     }
@@ -124,9 +113,5 @@ document.getElementById('submit-btn').onclick = () => {
 
 function backToDashboard() { location.reload(); }
 document.querySelectorAll('.t-btn').forEach(b => {
-    if(b.dataset.cmd) b.onclick = () => { 
-        if(!started) return;
-        document.execCommand(b.dataset.cmd); 
-        document.getElementById('editor').focus(); 
-    };
+    if(b.dataset.cmd) b.onclick = () => { document.execCommand(b.dataset.cmd); document.getElementById('editor').focus(); };
 });
