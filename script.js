@@ -1,18 +1,17 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-// =========================================================
-// ✅ AAPKI FINAL KEYS (Maine correct format me set kar di hain)
-// =========================================================
+// ==========================================
+// ✅ PRESERVED KEYS (Turn 15, Line 5-7)
+// ==========================================
 const CLIENT_ID = '1099442490417-04i1f2t2ilj31ddki1c4fhcm3bgdr2j6.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyC657KGTX-fn3TxdYptSIedkQ0ZKd4lfUI';
 const ADMIN_FOLDER_ID = '10pTgGbmUDlOvbUuJDYuIrBy3svSif2-s';
-// =========================================================
+// ==========================================
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 let tokenClient;
 let accessToken = null;
 let currentOriginalText = "";
-let currentTestName = "";
 let timerInterval, timeLeft = 900, started = false;
 let studentResults = JSON.parse(localStorage.getItem('localResults')) || [];
 
@@ -23,6 +22,7 @@ window.onload = function () {
         scope: SCOPES,
         callback: (tokenResponse) => {
             accessToken = tokenResponse.access_token;
+            // Login Success!
             document.getElementById('home-page').style.display = 'none';
             document.getElementById('dashboard-page').style.display = 'flex';
         },
@@ -33,48 +33,53 @@ function handleGoogleLogin() {
     tokenClient.requestAccessToken();
 }
 
-// 2. Fetch Test List from Admin's Folder
+// 2. Modified: Toggle and Populate Inline Test List
 async function toggleTestList() {
     const listDiv = document.getElementById('inline-test-list');
+    const button = document.querySelector('.action-card button');
     
-    if (listDiv.style.display === 'flex') {
+    // Toggle behavior
+    if (listDiv.style.display === 'block') {
         listDiv.style.display = 'none';
+        button.innerText = "View My Tests";
         return;
     }
     
-    listDiv.style.display = 'flex';
-    listDiv.innerHTML = '<span style="color: #64748b;">Loading files...</span>';
+    // Otherwise show and load
+    listDiv.style.display = 'block';
+    button.innerText = "Hide My Tests";
+    
+    listDiv.innerHTML = '<span style="color:#64748b;">Loading tests from Admin Drive...</span>';
 
     try {
         const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${ADMIN_FOLDER_ID}'+in+parents&key=${API_KEY}`);
         const data = await response.json();
         
         if (data.files && data.files.length > 0) {
-            // Test 1, Test 2 Boxes generate honge
             listDiv.innerHTML = data.files.map(file => `
-                <div class="test-box" onclick="startTest('${file.id}', '${file.name}')">
-                    ${file.name.replace('.pdf', '')}
+                <div class="test-list-row" onclick="startTest('${file.id}', '${file.name}')">
+                    <span>${file.name}</span>
+                    <span class="test-row-id">Admin</span>
                 </div>
             `).join('');
         } else {
-            listDiv.innerHTML = '<span style="color: #ef4444;">No tests uploaded yet.</span>';
+            listDiv.innerHTML = '<span style="color:#ef4444;">No tests available.</span>';
         }
     } catch (error) {
-        listDiv.innerHTML = '<span style="color: #ef4444;">Access Error. Check Folder sharing permissions.</span>';
+        listDiv.innerHTML = '<span style="color:#ef4444;">Error loading tests. Check Config.</span>';
     }
 }
 
-// 3. Load PDF into Workspace
+// 3. Load Selected Test PDF (Page 3 workspace)
 async function startTest(fileId, fileName) {
     document.getElementById('dashboard-page').style.display = 'none';
     document.getElementById('workspace-page').style.display = 'flex';
-    
-    currentTestName = fileName.replace('.pdf', '');
-    document.getElementById('current-test-name').innerText = currentTestName;
+    document.getElementById('current-test-name').innerText = `Admin Test: ${fileName}`;
     
     const pdfContainer = document.getElementById('pdf-container');
-    pdfContainer.innerHTML = '<div class="empty-state">Downloading Test Paper...</div>';
+    pdfContainer.innerHTML = '<div class="empty-state">Loading PDF from Drive...</div>';
     
+    // Reset Editor & Timer
     document.getElementById('editor').innerHTML = "";
     clearInterval(timerInterval);
     timeLeft = 900; started = false;
@@ -112,13 +117,13 @@ async function startTest(fileId, fileName) {
             currentOriginalText += content.items.map(s => s.str).join(" ") + " ";
         }
     } catch (err) {
-        pdfContainer.innerHTML = '<div class="empty-state" style="color:var(--danger);">Error loading PDF file.</div>';
+        pdfContainer.innerHTML = '<div class="empty-state" style="color:red;">Failed to load PDF. Check Drive Permissions.</div>';
     }
 }
 
-// 4. Compare Result & Save Data
+// 4. Submit & Compare Result
 document.getElementById('submit-btn').onclick = () => {
-    if(!started) return alert("You haven't typed anything!");
+    if(!started) return alert("You haven't typed anything yet!");
     clearInterval(timerInterval);
     
     const typedWords = document.getElementById('editor').innerText.trim().split(/\s+/);
@@ -139,30 +144,9 @@ document.getElementById('submit-btn').onclick = () => {
     document.getElementById('error-analysis').innerHTML = html;
     document.getElementById('result-modal').style.display = 'flex';
 
-    // Results Backup
-    const resultData = {
-        date: new Date().toLocaleDateString(),
-        testName: currentTestName,
-        wpm: wpm,
-        accuracy: acc
-    };
-    studentResults.push(resultData);
+    studentResults.push({ date: new Date().toLocaleDateString(), testName: document.getElementById('current-test-name').innerText, wpm, acc });
     localStorage.setItem('localResults', JSON.stringify(studentResults));
-    saveToStudentDrive(resultData); // Save JSON to Google Drive
 };
-
-async function saveToStudentDrive(dataObj) {
-    const fileContent = new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' });
-    const metadata = { name: `AnupamSteno_${dataObj.testName}_Result.json` };
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', fileContent);
-    fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: new Headers({ 'Authorization': `Bearer ${accessToken}` }),
-        body: form
-    });
-}
 
 // 5. Utilities
 document.getElementById('editor').oninput = () => {
@@ -188,13 +172,8 @@ function backToDashboard() {
 }
 
 function showHistory() {
-    document.getElementById('history-page').style.display = 'flex';
+    document.getElementById('history-modal').style.display = 'flex';
     const tbody = document.getElementById('history-body');
-    if(studentResults.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No tests completed yet.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = studentResults.map(r => `
-        <tr><td>${r.date}</td><td style="font-weight:bold;">${r.testName}</td><td style="color:var(--accent); font-weight:bold;">${r.wpm}</td><td style="color:#10b981; font-weight:bold;">${r.accuracy}</td></tr>
-    `).reverse().join('');
+    if(studentResults.length === 0) { tbody.innerHTML = '<tr><td colspan="4">No tests taken yet.</td></tr>'; return; }
+    tbody.innerHTML = studentResults.map(r => `<tr><td>${r.date}</td><td>${r.testName}</td><td>${r.wpm}</td><td>${r.acc}</td></tr>`).reverse().join('');
 }
