@@ -1,12 +1,8 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-// =========================================================
-// ✅ AAPKI FINAL KEYS
-// =========================================================
 const CLIENT_ID = '1099442490417-04i1f2t2ilj31ddki1c4fhcm3bgdr2j6.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyC657KGTX-fn3TxdYptSIedkQ0ZKd4lfUI';
 const ADMIN_FOLDER_ID = '10pTgGbmUDlOvbUuJDYuIrBy3svSif2-s';
-// =========================================================
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 let tokenClient;
@@ -16,7 +12,6 @@ let currentTestName = "";
 let timerInterval, timeLeft = 900, started = false;
 let studentResults = JSON.parse(localStorage.getItem('localResults')) || [];
 
-// 1. Google Login Setup
 window.onload = function () {
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
@@ -39,7 +34,6 @@ function handleGoogleLogin() {
     }
 }
 
-// 2. Fetch Tests List
 async function toggleTestList() {
     const listDiv = document.getElementById('inline-test-list');
     
@@ -69,20 +63,17 @@ async function toggleTestList() {
     }
 }
 
-// 3. Load PDF & Setup Start Button
 async function startTest(fileId, fileName) {
     document.getElementById('dashboard-page').style.display = 'none';
     document.getElementById('workspace-page').style.display = 'flex';
     
     currentTestName = fileName.replace('.pdf', '');
     
-    // Reset "Start Test" Button
     const startBtn = document.getElementById('start-test-btn');
     startBtn.innerText = "Start Test";
     startBtn.style.background = "#10b981";
     startBtn.setAttribute("onclick", "beginTypingTest()");
     
-    // Lock the editor
     const editor = document.getElementById('editor');
     editor.contentEditable = false;
     editor.innerHTML = "<div style='color:#94a3b8; text-align:center; margin-top:100px; font-weight:bold;'>Click the Green 'Start Test' button above to begin typing...</div>";
@@ -95,7 +86,6 @@ async function startTest(fileId, fileName) {
     document.getElementById('timer').innerText = "15:00";
 
     try {
-        // Fetch public PDF using API key
         const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`);
         if (!response.ok) throw new Error("File access denied.");
         
@@ -112,7 +102,10 @@ async function startTest(fileId, fileName) {
 
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
-            const viewport = page.getViewport({scale: 2.2});
+            
+            // 🔥 YAHAN SCALE 4.0 KAR DIYA HAI (HD QUALITY KE LIYE)
+            const viewport = page.getViewport({scale: 4.0});
+            
             const canvas = document.createElement('canvas');
             canvas.className = 'pdf-canvas';
             canvas.height = viewport.height; canvas.width = viewport.width;
@@ -132,7 +125,6 @@ async function startTest(fileId, fileName) {
     }
 }
 
-// 4. Begin Typing Logic (Unlocks editor, starts timer)
 function beginTypingTest() {
     if (!currentOriginalText) {
         alert("Please wait for the PDF to load completely before starting!");
@@ -141,19 +133,16 @@ function beginTypingTest() {
     
     started = true;
     
-    // Unlock editor
     const editor = document.getElementById('editor');
     editor.contentEditable = true;
     editor.innerHTML = ""; 
     editor.focus();
 
-    // Change Button appearance
     const startBtn = document.getElementById('start-test-btn');
     startBtn.innerText = currentTestName;
     startBtn.style.background = "#334155";
-    startBtn.removeAttribute("onclick"); // Disable clicking again
+    startBtn.removeAttribute("onclick");
 
-    // Timer Logic
     timerInterval = setInterval(() => {
         timeLeft--;
         let m = Math.floor(timeLeft / 60);
@@ -168,7 +157,6 @@ function beginTypingTest() {
     }, 1000);
 }
 
-// 5. Submit & Compare Result
 document.getElementById('submit-btn').onclick = () => {
     if(!started) return alert("You haven't started the test yet!");
     clearInterval(timerInterval);
@@ -191,7 +179,6 @@ document.getElementById('submit-btn').onclick = () => {
     document.getElementById('error-analysis').innerHTML = html;
     document.getElementById('result-modal').style.display = 'flex';
 
-    // Data Backup
     const resultData = {
         date: new Date().toLocaleDateString(),
         testName: currentTestName,
@@ -200,10 +187,9 @@ document.getElementById('submit-btn').onclick = () => {
     };
     studentResults.push(resultData);
     localStorage.setItem('localResults', JSON.stringify(studentResults));
-    saveToStudentDrive(resultData); // Upload JSON to user's Drive
+    saveToStudentDrive(resultData);
 };
 
-// Save JSON to Drive
 async function saveToStudentDrive(dataObj) {
     const fileContent = new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' });
     const metadata = { name: `AnupamSteno_${dataObj.testName}_Result.json` };
@@ -217,7 +203,6 @@ async function saveToStudentDrive(dataObj) {
     });
 }
 
-// Format Buttons (Bold, Italic, etc)
 document.querySelectorAll('.t-btn').forEach(btn => {
     btn.onclick = () => { 
         if(!started) return;
@@ -226,7 +211,6 @@ document.querySelectorAll('.t-btn').forEach(btn => {
     };
 });
 
-// UI Navigation functions
 function backToDashboard() {
     document.getElementById('result-modal').style.display = 'none';
     document.getElementById('workspace-page').style.display = 'none';
