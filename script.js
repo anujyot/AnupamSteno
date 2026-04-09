@@ -29,7 +29,7 @@ async function toggleTestList() {
     try {
         const res = await fetch(`https://www.googleapis.com/drive/v3/files?q='${ADMIN_FOLDER_ID}'+in+parents&key=${API_KEY}`);
         const data = await res.json();
-        list.innerHTML = data.files.map(f => `<div class="test-box" style="border:1px solid #1e293b; padding:10px; cursor:pointer; font-weight:bold; margin:5px; background:white;" onclick="startTest('${f.id}', '${f.name}')">${f.name.replace('.pdf','')}</div>`).join('');
+        list.innerHTML = data.files.map(f => `<div class="test-box" onclick="startTest('${f.id}', '${f.name}')">${f.name.replace('.pdf','')}</div>`).join('');
     } catch(e) { list.innerHTML = "Error loading files."; }
 }
 
@@ -38,7 +38,7 @@ async function startTest(id, name) {
     document.getElementById('dashboard-page').style.display = 'none';
     document.getElementById('workspace-page').style.display = 'flex';
     const container = document.getElementById('pdf-container');
-    container.innerHTML = 'Loading HD PDF...';
+    container.innerHTML = 'Loading PDF...';
     
     const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${API_KEY}`);
     const pdf = await pdfjsLib.getDocument({data: await res.arrayBuffer()}).promise;
@@ -46,23 +46,47 @@ async function startTest(id, name) {
 
     for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
-        const viewport = page.getViewport({scale: 4.0}); // HD QUALITY
+        const viewport = page.getViewport({scale: 4.0}); 
         const canvas = document.createElement('canvas');
         canvas.className = 'pdf-canvas';
         canvas.height = viewport.height; canvas.width = viewport.width;
         await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
         const wrap = document.createElement('div'); wrap.className = 'pdf-wrap';
         wrap.appendChild(canvas); container.appendChild(wrap);
-        const text = await page.getTextContent();
-        // Maintain layout during text extraction
-        currentOriginalText += text.items.map(s => s.str).join(" ") + "\n";
+        
+        const textContent = await page.getTextContent();
+        let lastY, pageText = "";
+        textContent.items.forEach(item => {
+            if (lastY !== undefined && Math.abs(lastY - item.transform[5]) > 5) pageText += "\n";
+            pageText += item.str + " ";
+            lastY = item.transform[5];
+        });
+        currentOriginalText += pageText + "\n";
     }
+    
+    // Setup Test
+    clearInterval(timerInterval);
+    timeLeft = 900;
+    document.getElementById('timer').innerText = "15:00";
+    const startBtn = document.getElementById('start-test-btn');
+    startBtn.innerText = "Start Test";
+    startBtn.style.background = "#10b981";
+    startBtn.onclick = beginTypingTest;
+    
+    const ed = document.getElementById('editor');
+    ed.contentEditable = false;
+    ed.innerHTML = "<div style='color:#94a3b8; text-align:center; margin-top:100px;'>Click Start Test to begin...</div>";
 }
 
 function beginTypingTest() {
-    started = true; const ed = document.getElementById('editor');
+    started = true;
+    const ed = document.getElementById('editor');
     ed.contentEditable = true; ed.innerHTML = ""; ed.focus();
-    document.getElementById('start-test-btn').innerText = currentTestName;
+    const btn = document.getElementById('start-test-btn');
+    btn.innerText = currentTestName;
+    btn.style.background = "#334155";
+    btn.onclick = null;
+    
     timerInterval = setInterval(() => {
         timeLeft--;
         let m = Math.floor(timeLeft/60), s = timeLeft%60;
@@ -74,40 +98,32 @@ function beginTypingTest() {
 document.getElementById('submit-btn').onclick = () => {
     if(!started) return;
     clearInterval(timerInterval);
-    
-    const editor = document.getElementById('editor');
-    const typedText = editor.innerText;
+    const typedText = document.getElementById('editor').innerText;
     const typedWords = typedText.trim().split(/\s+/);
-    const refWords = currentOriginalText.trim().split(/\s+/);
-    
-    let mistakes = 0;
-    let html = "";
+    const refLines = currentOriginalText.split("\n");
+    let mistakes = 0, finalHtml = "";
 
-    // Exact word matching for legal accuracy
-    refWords.forEach((ref, i) => {
-        let typed = typedWords[i] || "";
-        
-        // Exact match or Case-insensitive match or Formatting (Colon etc.)
-        if (typed === ref || typed.toLowerCase() === ref.toLowerCase() || (ref.endsWith(':') && typed === ref.replace(':',''))) {
-            html += `<span class="text-correct">${ref}</span> `;
-        } else if (typed === "") {
-            mistakes++;
-            html += `<span class="text-missing">${ref}</span> `; // Underline Green
-        } else {
-            mistakes++;
-            html += `<span class="text-error">${typed}</span><span class="text-correct">(${ref})</span> `; // Red
-        }
+    refLines.forEach((refLine, lineIdx) => {
+        if (!refLine.trim()) return;
+        let refWords = refLine.trim().split(/\s+/);
+        refWords.forEach(ref => {
+            let typed = typedWords.shift() || "";
+            if (typed === ref || typed.toLowerCase() === ref.toLowerCase() || (ref.endsWith(':') && typed === ref.replace(':',''))) {
+                finalHtml += `<span class="text-correct">${ref}</span> `;
+            } else if (typed === "") {
+                mistakes++; finalHtml += `<span class="text-missing">${ref}</span> `;
+            } else {
+                mistakes++; finalHtml += `<span class="text-error">${typed}</span><span class="text-correct">(${ref})</span> `;
+            }
+        });
+        finalHtml += "\n";
     });
 
-    // Horizontal Line Check
-    if(!editor.innerHTML.includes('<hr>')) {
-        html = '<div class="hr-mistake"></div>' + html;
-    }
+    if(!document.getElementById('editor').innerHTML.includes('<hr>')) finalHtml = '<div class="hr-mistake"></div>' + finalHtml;
 
-    const wpm = Math.round((typedWords.length/5)/((900-timeLeft)/60)) || 0;
-    document.getElementById('res-wpm').innerText = wpm;
-    document.getElementById('res-acc').innerText = ((refWords.length-mistakes)/refWords.length*100).toFixed(1) + "%";
-    document.getElementById('error-analysis').innerHTML = html;
+    document.getElementById('res-wpm').innerText = Math.round((typedText.trim().split(/\s+/).length/5)/((900-timeLeft)/60)) || 0;
+    document.getElementById('res-acc').innerText = ((currentOriginalText.trim().split(/\s+/).length-mistakes)/currentOriginalText.trim().split(/\s+/).length*100).toFixed(1) + "%";
+    document.getElementById('error-analysis').innerHTML = finalHtml;
     document.getElementById('result-modal').style.display = 'flex';
 };
 
