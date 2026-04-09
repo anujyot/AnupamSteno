@@ -57,7 +57,9 @@
         </nav>
 
         <main class="workspace">
-            <section class="pane pdf-pane"><div id="pdf-container" class="scroll-v"></div></section>
+            <section class="pane pdf-pane">
+                <div id="pdf-container" class="scroll-v"></div>
+            </section>
             <section class="pane editor-pane">
                 <div class="editor-header">
                     <div class="toolbar-pill">
@@ -79,20 +81,20 @@
                         <button class="t-btn" data-cmd="insertHorizontalRule"><i class="material-icons">horizontal_rule</i></button>
                     </div>
                 </div>
-                <div id="editor" contenteditable="false" class="typing-area"></div>
+                <div id="editor" contenteditable="false" spellcheck="false" class="typing-area"></div>
             </section>
         </main>
     </div>
 
     <div id="result-modal" class="modal-blur">
         <div class="modal-box">
-            <h3>Test Completed! Result with Correction</h3>
+            <h3 style="margin-bottom:20px;">Test Completed! Result with Correction</h3>
             <div class="stats-row">
                 <div class="card-stat"> <span class="val" id="res-wpm">0</span> <span class="lbl">WPM</span> </div>
                 <div class="card-stat"> <span class="val" id="res-acc">0%</span> <span class="lbl">Accuracy</span> </div>
             </div>
             <div id="error-analysis" class="analysis-text"></div>
-            <button onclick="backToDashboard()" class="btn-action compare">Save</button>
+            <button onclick="backToDashboard()" class="btn-action compare" style="margin-top:20px;">Save & Dashboard</button>
         </div>
     </div>
 
