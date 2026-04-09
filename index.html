@@ -40,7 +40,7 @@
                 <div id="inline-test-list" class="test-boxes-container" style="display: none;"></div>
             </div>
             <div class="dash-right">
-                <button onclick="showHistory()" class="dash-icon-btn">Dashboard <i class="material-icons">show_chart</i></button>
+                <button onclick="alert('History feature coming soon!')" class="dash-icon-btn">Dashboard <i class="material-icons">show_chart</i></button>
             </div>
         </div>
     </div>
@@ -86,26 +86,14 @@
 
     <div id="result-modal" class="modal-blur" style="display: none;">
         <div class="modal-box">
-            <h3>Test Completed! Result with Correction</h3>
+            <h2 style="margin-bottom:10px;">Test Completed!</h2>
+            <p style="color:#64748b; margin-bottom:20px;">Result with Correction</p>
             <div class="stats-row">
-                <div class="card-stat"><span class="val" id="res-wpm">0</span><span class="lbl">WPM</span></div>
-                <div class="card-stat"><span class="val" id="res-acc">0%</span><span class="lbl">Accuracy</span></div>
+                <div class="card-stat"> <span class="val" id="res-wpm">0</span> <span class="lbl">WPM</span> </div>
+                <div class="card-stat"> <span class="val" id="res-acc">0%</span> <span class="lbl">Accuracy</span> </div>
             </div>
             <div id="error-analysis" class="analysis-text"></div>
             <button onclick="backToDashboard()" class="btn-action compare" style="margin-top:20px;">Save & Dashboard</button>
-        </div>
-    </div>
-
-    <div id="history-page" class="modal-blur" style="display: none;">
-        <div class="modal-box" style="width: 85%; max-width: 900px;">
-            <h3>My Dashboard & History</h3>
-            <div class="table-wrap">
-                <table class="history-table">
-                    <thead><tr><th>Date</th><th>Test Name</th><th>WPM</th><th>Accuracy</th></tr></thead>
-                    <tbody id="history-body"></tbody>
-                </table>
-            </div>
-            <button onclick="document.getElementById('history-page').style.display='none'" class="btn-action exit-btn" style="margin-top:20px;">Close</button>
         </div>
     </div>
 
