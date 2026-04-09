@@ -72,8 +72,8 @@ body { margin: 0; background: #f8fafc; font-family: 'Inter', sans-serif; height:
     overflow: hidden; 
 }
 .pdf-canvas { 
-    width: 130%; 
-    margin-left: -15%; 
+    width: 125%; 
+    margin-left: -20%; 
     display: block; 
     image-rendering: crisp-edges; 
 }
